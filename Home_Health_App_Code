@@ -1,0 +1,367 @@
+//Creating the Login Screen
+
+class User(var name: String, var email: String, var password: String)
+
+class RegistrationActivity : AppCompatActivity() {
+    private lateint var nameEditText: AccessibleEditableText
+    private lateint var emailEditText: AccessibleEditableText
+    private lateint var passwordEditText: AccessibleEditableText
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+       super.onCreate(savedInstanceState)
+       setContentView(R.layout.activity_registration)
+
+        nameEditText = findViewById(R.id.nameEditText)
+        emailEditText = findViewById(R.id.emailEditText)
+        passwordEditText = findViewById(R.id.passwordEditText)
+
+        val registerButton = findViewById<Button>(R.id.registerButton)
+        registerButton.setOnClickListener {
+            val name = nameEditText.text.toString().trim()
+            val email = emailEditText.text.toString().trim()
+            val password = passwordEditText.text.toString().trim()
+
+            val user = User(name, email, password)
+            registerUser(user)
+        }
+    }
+
+    private fun registerUnder(user: User) {
+    }
+}
+
+// Implementing the registerUser method to make an HTTP POST request to a server-side point
+
+private fun registerUser(user: User) {
+    val url = "https://homehealthnursing.com/api/register"
+
+    val requestBody = JSONObject().apply {
+        put("name", user.name)
+        put("email", user.email)
+        put("password", user.password)
+    }
+
+    val request = JsonObjectRequest(Request.Method.POST, url, requestBody,
+            { response ->
+
+            },
+            { error ->
+
+            })
+    Volley.newRequestQueue(this).add(request)
+}
+
+//Adding Location Permissions for the app to access the Device's or Network's GPS location.
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
+// Fused Location Provider API is used to  get the device's last entered location.
+  class LocationService(private val context: Context) {
+    private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+    fun getLastLocation(onSuccess: (location: location?) -> Unit) {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            //Handle missing location Permissions
+            return
+        }
+
+        fusedLocationClient.lastlocation.addOnSuccessListener { location ->
+            onSuccess(location)
+        }
+    }
+
+    fun requestLocationUpdates(interval: Long, fastestInterval: Long, locationcallback: LocationCallBack) {
+        if(ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+               && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+           //Handle missing location permission
+           return
+        }
+
+ val locationRequest = LocationRequest.create().apply {
+        priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        interval = interval
+        fastestinterval = fastestinterval
+    }
+
+    fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
+
+    }
+
+    fun removeLocationUpdates(locationCallback: LocationCallback: LocationCallback) {
+        fusedLocationClient.removeLocationUpdates(locationCallback)
+    }
+
+}
+
+//Creating a LocationCallback Class to handle location updates from the Fused Location Provider API
+class LocationCallback(private val onSuccess: (location: Location) -> Unit) : com.google.android.gms.location.LocationCallback() {
+      override fun onLocationResult(locationResult: LocationResult?) {
+          locationResult ?: return
+          val location  = locationResult.lastlocaion ?: return
+          onSuccess(location)
+      }
+    }
+
+val locationService = LocationService(this)
+
+//Get the device's last known location
+locationService.getLastLocation { location ->
+    if (location != null) {
+        //Update the user's location in the database or preferences
+    } else {
+        //Request location updates
+        val locationCallback = LocationCallback { location ->
+            // Update the user's location in the database or preferences
+            locationService.removeLocationUpdates(this)
+    }
+    locationService.requestLocationUpdates(5000, 5000, locationCallback)
+}
+
+//Finding the nearest home healthcare nurse
+
+//Define the search parameters
+val radius = 5000
+val type = "homehealth"
+
+//Use the Google Places API to find nearby places
+val placesClient =  Places.createClient(this)
+val location = Location("")
+location.latitude = lat //replace with the user's latitude
+location.longitude = lng //replace with the user's longitude
+val bounds = LatLngBounds.Builder().include(LatLng(location.latitude, location.longitude)).build()
+val request = FindAutoCompletePredictionsRequest.builder()
+    .setLocationBias(RectangularBounds.newInstance(bounds))
+    .setRadius(radius.toDouble())
+    .setTypeFilter(TypeFilter.ESTABLISHMENT)
+    .setQuery(type)
+    .build()
+
+placesClient.findAutoCompletePredictions(request).addOnSuccessListener { response ->
+    val.placeIds = response.autocompletePredictions.map {it.placeId}
+
+//Use the Google Places API to get details for each nearby place
+placeIds.forEach { placeId ->
+    val placeRequest = FetchPlaceRequest.newInstance(placeId, listOf(Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG))
+    placesClient.fetchPlace(placeRequest).addOnSuccessListener{placeResponse ->
+        val place = placeResponse.place
+
+// Calculate the distance from the user's location to the homehealthcare nurses
+   val providerlocation = Location("")
+   providerLocation.latitude = place.lating?.latitude?: 0.0
+   providerlocation.longitude = place.latLng?.longitude ?: 0.0
+   val distance = location.distanceTo(providerLocation)
+
+ //Store the registered homehealthcare nurses in a separate list
+ val provider = HealthcareProvider(place.id!!, place.name!!, place.latLng!!.latitude, place.latLng!!.longitude, distance)
+ healthcareProviders.add(provider)
+    }
+}
+
+//Configuring the Database connection by creating a new 'SessionFactory' object and specifying the Database connection properties
+
+import org.hibernate.SessionFactory
+import.org.hibernate.cfg.Configuration
+
+val sesionFactory: SessionFactory = Configuration()
+    .setProperty("hibernate.connection.driver_class", "com.mysql.jdbc.Driver")
+    .setProperty("hibernate.connection.url", "jdbc:mysql://localhost:3306/mydatabase")
+    .setProperty("hibernate.connection.username", "username")
+    .setPropeorty("hibernate.connection.password", "password")
+    .setProperty("hibernate.dialect", "org.hibernate.MySQLDialect")
+    .addAnnotatedClass(Nurse::Class.java)
+    .buildSessionFactory()
+
+//Defining the Nurse Model using Kotlin Data classes and Hibernate annotations
+
+import javax.persistence.*
+
+@Entity
+@Table(name="nurses")
+data class Nurse(
+    @Id
+    @GeneratedValue(strategy=GenerationType.IDENTITY)
+    var id: Int = 0,
+
+    @Column(nullable = false)
+    var name: String ="",
+
+    @Column(nullable = false)
+    var address: String = "",
+
+    @Column(nullable = false)
+    var availability: String = "",
+
+    @Column(nullable = false)
+    var phone: String = "",
+
+    @Column(nullable = false)
+    var certification: String? = null,
+
+    @Column
+    var license: String? = null
+
+    )
+
+//Creating the Database tables
+sessionFactory.createSchema()
+
+//CRUD Operations
+val session = sessionFactory.openSession()
+
+//Creating a new nurse record
+val newNurse = Nurse(name="Jane Deanna", address = "14-42 Main Street", phone = "123-234-557", availability ="Weekends")
+session.save(newNurse)
+session.transaction.commit()
+
+//Retrieving a list of nurses
+val nurses = session.createQuery("FROM Nurse").list()
+
+//Update a nurse record
+val nurse = session.get(Nurse::class.java)
+nurse.availability = "weekends"
+session.update(nurse)
+session.transaction.commit()
+    
+//Delete a nurse record
+val nurseToDelete = session.get(Nurse::class.java, 1)
+session.delete(nurseToDelete)
+session.transaction.commit()
+    
+session.close()
+
+//Ktor framework to create a backend server that provides RESTful APIs
+implementation "io.ktor:ktor-server-netty:$ktor_version"
+    
+//Create the Ktor application module with a new file called 'Application.kt' 
+ import io.ktor.application.*
+ import io.ktor.features.*
+ import io.ktor.gson.*
+ import io.ktor.routing.*
+ import io.ktor.server.engine.*
+ import io.ktor.server.netty.*
+
+ fun main() {
+     embeddedServer(Netty, port = 8080, module = Application::module).start(wait=true)
+ }
+ 
+ fun Application.module() {
+     install(ContentNegotiation) {
+         gson()
+     }
+ }
+ 
+import io.ktor.application.*
+import io.ktor.http.*
+import io.ktor.request.*
+import io.ktor.response.*
+import io.ktor.routing.*
+import kotlinx.coroutines.runBlocking
+    
+fun Application.module() {
+     routing{
+           post("/nurses"){
+               val nurse = call.receive<Nurse>()
+                runBlocking {
+                     saveNurse(nurse)
+                 }
+                 call.respond(HttpStatusCode.Created)
+     }
+   }
+}   
+    
+suspend fun saveNurse(nurse: Nurse) {
+}
+
+/Adding the Places API dependency
+implementation 'com.google.android.gms:play-services-maps:17.0.1'
+implementation 'com.google.android.gms:play-services-places:17.0.0'
+
+//Setting up the Places API by initializing the Places API client and specifying the API key in the Application class
+
+import android.app.Application
+import com.google.android.gms.maps.MapInitializer
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.net.PlacesClient
+
+class MyApplication : Application() {
+     lateint var placesClient: PlacesClient
+
+      override fun onCreate(){
+           super.onCreate()
+
+          Places.initialize(this, "YOUR_API_KEY")
+          placesClient = Places.createClient(this)
+
+          MapsInitializer.initialize(this)
+
+
+         }
+    }
+
+
+//Retrieve nearby healthcare nurse providers by calling the 'findCurrentPlace' method on the 'PlacesClient' object.
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
+import com.google.android.libraries.places.api.net.FindCurentPlaceResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+
+
+
+class MyViewModel : ViewModel() {
+    fun getNearbyNurses(location: LatLng): List<Place>
+       return runBlocking {
+           val request = FindcurrentPlaceRequest.builder(listOf(Place.field.NAME, Place.field.LAT_LNG))
+                .build()
+
+           if (ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.ACCESS_FINE_LOCATION)
+               == PackageManager.PERMISSION_GRANTED
+           ) {
+               val response: findCurrentPlaceResponse = withContext(Dispatchers.IO) {
+                   placesClient.findCurrentPlace(request).await()
+               }
+               response.placelikelihoods.map {it.place}
+           } else {
+               emptylist()
+           }
+       }
+}
+   //Setting up Firebase Authentication API
+    
+implementation 'com.google.firebase:firebase-auth:21.0.1'
+    
+import android.app.Application
+import com.google.Firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+    
+    
+class MyApplication : Application() {
+    lateint var auth: FirebaseAuth
+    
+    override fun OnCreate() {
+         super.OnCreate()
+    
+         FirebaseApp.initializeApp(this)
+         auth = FirebaseAuth.getInstance()
+    
+    }
+}    
+    
+    
+//Implementing User Registration
+    
+import com.google.firebase.auth.AuthResult
+import kotlinx.coroutines.tasks.await
+    
+class MyViewModel : ViewModel() {
+    suspend fun register(email: String, password: String): AuthResult? {
+        return auth.createUserWithEmailAndPassword(email, password).await()
+    }
+}    
